@@ -1,11 +1,10 @@
 const express = require("express");
-const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const cors = require("cors");
-const cloudinary = require("cloudinary");
+const cloudinary = require("cloudinary").v2;
 
-//import routes
+// Import routes
 const authRoutes = require("./src/routes/login.js");
 const doctorRoutes = require("./src/routes/userDoctor.js");
 const patientRoutes = require("./src/routes/userPatient.js");
@@ -27,50 +26,42 @@ const medicalHistoryRoutes = require("./src/routes/medicalHistoryRoute");
 const changePasswordRoutes = require("./src/routes/changePasswordRoutes");
 const patientAddFamilyMemberRoutes = require("./src/routes/patientAddFamilyMemberRoutes");
 const MeasurementUnitsRoutes = require("./src/routes/MeasurementUnitsRoutes.js");
+const dashBoardRoutes = require("./src/routes/dashBoardRoutes.js");
 
 dotenv.config();
 const app = express();
 
-//select port
+// Select port
 const PORT = process.env.PORT || 5001;
 
-//cloudinary config
-cloudinary.v2.config({
+// Cloudinary configuration
+cloudinary.config({
   cloud_name: process.env.CLOUDINARY_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Middleware to parse JSON bodies
-// app.use(express.json());
+// Middleware to parse JSON bodies and handle CORS
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
 
-app.use(bodyParser.json());
-app.use(
-  bodyParser.urlencoded({
-    extended: true,
-  })
-);
-
-//databse connection
+// Database connection
 const connectionParams = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 };
 
 mongoose
-  .connect(process.env.MONGO_URI, connectionParams)
+  .connect(process.env.MONGO_URI)
   .then(() => {
-    console.log("DB connection successfull!");
+    console.log("DB connection successful!");
   })
   .catch((err) => {
-    console.log(err);
+    console.error("DB connection error:", err.message);
   });
 
-//allow to send json
-app.use(express.json());
-app.use(cors());
-
-//routes
+// Routes
 app.use("/api", authRoutes);
 app.use("/api/userdoctor", doctorRoutes);
 app.use("/api/userpatient", patientRoutes);
@@ -92,7 +83,20 @@ app.use("/api/medicalHistory", medicalHistoryRoutes);
 app.use("/api/changePassword", changePasswordRoutes);
 app.use("/api/patientAddFamilyMember", patientAddFamilyMemberRoutes);
 app.use("/api/measurementunits", MeasurementUnitsRoutes);
+app.use("/api/dashboard", dashBoardRoutes);
 
+// Global error handler (optional)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send("Something went wrong!");
+});
+
+// 404 Handler (optional)
+app.use((req, res) => {
+  res.status(404).send("Route not found");
+});
+
+// Start server
 app.listen(PORT, () => {
-  console.log(`app running on port ${PORT}`);
+  console.log(`App running on port ${PORT}`);
 });

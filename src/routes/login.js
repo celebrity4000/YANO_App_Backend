@@ -5,6 +5,7 @@ const UserPatient = require("../models/UserPatient");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { verifyToken } = require("../middlewares/VerifyToken");
+const { getUserById } = require("../controllers/userController");
 
 // Unified login route
 router.post("/login", async (req, res) => {
@@ -84,7 +85,8 @@ router.post("/changepassword", verifyToken, async (req, res) => {
     }
 
     // Compare old password
-    const isMatch = bcrypt.compare(oldPassword, user.password);
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+
     if (!isMatch) {
       return res.status(400).json({ message: "Incorrect old password" });
     }
@@ -103,5 +105,7 @@ router.post("/changepassword", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+router.get("/getUserById/:id", getUserById);
 
 module.exports = router;

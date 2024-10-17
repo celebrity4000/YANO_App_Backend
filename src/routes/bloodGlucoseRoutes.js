@@ -4,7 +4,7 @@ const bloodGlucoseController = require("../controllers/bloodGlucoseController");
 const { verifyToken } = require("../middlewares/VerifyToken");
 
 router.post("/", verifyToken, bloodGlucoseController.addBloodGlucose);
-router.get("/", verifyToken, bloodGlucoseController.getAllBloodGlucoseRecords);
+router.get("/", bloodGlucoseController.getAllBloodGlucoseRecords);
 router.get(
   "/:userId",
   verifyToken,
