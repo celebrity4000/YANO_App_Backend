@@ -16,6 +16,8 @@ const {
   verifyEmailOTP,
   deleteGlucometer,
   addGlucometer,
+  googleSignUp,
+  googleSignIn,
 } = require("../controllers/userPatientControllers");
 const { singleUpload } = require("../middlewares/multer");
 const { verifyToken } = require("../middlewares/VerifyToken");
@@ -26,6 +28,12 @@ const {
 
 // Signup route
 router.post("/signup", singleUpload, patientSignup);
+
+// Google Signin route
+router.post ("/signin-google", googleSignIn);
+
+// Google Signup route
+router.post ("/signup-google", googleSignUp);
 
 //login
 // router.post("/login", patientLogin);
@@ -74,7 +82,7 @@ router.post("/send-otp", sendEmailVerificationOTP);
 // Route to verify email OTP
 router.post("/verify-otp", verifyEmailOTP);
 
-//remove glucometer
+//add glucometer
 router.post("/glucometer/:userId", verifyToken, addGlucometer);
 
 //remove glucometer

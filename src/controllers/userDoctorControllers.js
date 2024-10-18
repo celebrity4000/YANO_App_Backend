@@ -5,6 +5,7 @@ const UserDoctor = require("../models/UserDoctor");
 const { singleUpload } = require("../middlewares/multer");
 const { getDataUri } = require("../utils/feature"); // Adjust the path based on your project structure
 const UserPatient = require("../models/UserPatient");
+const { OAuth2Client } = require('google-auth-library');
 
 exports.signup = async (req, res) => {
   const {
@@ -69,6 +70,7 @@ exports.signup = async (req, res) => {
       gender,
       dateOfBirth,
       speciality,
+      devices: [],
     });
 
     // Save the doctor to the database
@@ -195,6 +197,22 @@ exports.updateDoctor = async (req, res) => {
       // Optionally, delete the old image from Cloudinary
       if (doctor.userImg.public_id) {
         await cloudinary.uploader.destroy(doctor.userImg.public_id);
+      }
+    }
+
+    // Only process device data if it exists in the request
+    if (req.body.devices && req.body.devices.length > 0) {
+      const glucometerIndex = doctor.devices.findIndex(
+        (device) => device.deviceType === "glucometer"
+      );
+
+      if (glucometerIndex !== -1) {
+        // Update the serial number of the existing glucometer
+        doctor.devices[glucometerIndex].deviceSerialNumber =
+          req.body.devices[0].deviceSerialNumber;
+      } else {
+        // Add the new device to the list if no glucometer exists
+        doctor.devices.push(req.body.devices[0]);
       }
     }
 
@@ -406,3 +424,275 @@ exports.removePatientFromDoctor = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.addGlucometer = async (req, res) => {
+  const { userId } = req.params;
+  const glucometerData = req.body;
+
+  console.log(glucometerData);
+
+  try {
+    const doctor = await UserDoctor.findById(userId);
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    const glucometerIndex = doctor.devices.findIndex(
+      (device) => device.deviceType === "glucometer"
+    );
+    if (glucometerIndex == -1) {
+      doctor.devices.push(glucometerData);
+    } else {
+      return res
+        .status(500)
+        .json({ message: "Doctor already have glucometer" });
+    }
+
+    // Save the updated doctor data
+    const updatedDoctor = await doctor.save();
+
+    res.status(200).json({
+      message: "glucometer added successfully",
+      userData: updatedDoctor,
+    });
+  } catch (error) {
+    console.error("Error adding glucometer:", error);
+    res.status(404).json({ message: "Server error" });
+  }
+};
+
+exports.deleteGlucometer = async (req, res) => {
+  const { userId } = req.params;
+  // console.log(userId);
+  try {
+    const doctor = await UserDoctor.findById(userId);
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    const glucometerIndex = doctor.devices.findIndex(
+      (device) => device.deviceType === "glucometer"
+    );
+    if (glucometerIndex == -1) {
+      return res
+        .status(404)
+        .json({ message: "Patient doesnot have any glucometer" });
+    } else {
+      doctor.devices.pop();
+    }
+
+    // Save the updated doctor data
+    const updatedDoctor = await doctor.save();
+
+    res.status(200).json({
+      message: "glucometer device deleted successfully",
+      userData: updatedDoctor,
+    });
+  } catch (error) {
+    console.error("Error deleting glucometer:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.googleSignIn = async (req, res) => {
+  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  const { idToken } = req.body;
+
+  try {
+    // Verify the Google ID token
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const email = payload.email;
+
+    // Check if user already exists
+    let doctor = await UserDoctor.findOne({ email });
+
+    // const newDoctor = new UserDoctor({
+    //   userImg,
+    //   firstName,
+    //   lastName,
+    //   email,
+    //   password: hashedPassword,
+    //   userType: normalizedUserType, // Store the userType in lowercase
+    //   phoneNumber,
+    //   gender,
+    //   dateOfBirth,
+    //   speciality,
+    //   devices: [],
+    // });
+
+    if (!doctor) {
+      // If the doctor doesn't exist, create a new account
+      doctor = new UserDoctor({
+        firstName: payload.given_name,
+        lastName: payload.family_name,
+        email: payload.email,
+        userType: "doctor", // Default userType
+        // isEmailVerified: payload.email_verified,
+        googleId: payload.sub,
+        userImg:{secure_url:payload.picture},
+        devices: [],
+        password: ' ',
+        dateOfBirth: payload.birthdate || "", // Assuming payload.birthdate contains the date of birth
+        speciality: "",
+        gender: payload.gender || ""
+      });
+
+      await doctor.save();
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: doctor._id, email: doctor.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(200).json({
+      message: doctor.isEmailVerified
+        ? "Doctor signed in successfully"
+        : "Doctor account created successfully",
+      userData: doctor,
+      token,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// exports.signup = async (req, res) => {
+//   const {
+//     firstName,
+//     lastName,
+//     email,
+//     password,
+//     phoneNumber,
+//     gender,
+//     dateOfBirth,
+//     speciality,
+//     userType,
+//   } = req.body;
+
+//   try {
+//     // Validate required input
+//     if (!firstName || !lastName || !email || !password) {
+//       return res
+//         .status(400)
+//         .json({ message: "All required fields must be provided" });
+//     }
+
+//     // Normalize userType (role name) to lowercase if provided, else default to 'doctor'
+//     const normalizedUserType = userType ? userType.toLowerCase() : "doctor";
+
+//     // Check if email already exists
+//     const existingDoctor = await UserDoctor.findOne({ email });
+//     if (existingDoctor) {
+//       return res.status(400).json({ message: "Email already exists" });
+//     }
+
+//     // Hash the password
+//     const salt = await bcrypt.genSalt(10);
+//     const hashedPassword = await bcrypt.hash(password, salt);
+
+//     // Upload image to Cloudinary
+//     let userImg = {};
+//     if (req.file) {
+//       const fileUri = getDataUri(req.file).content;
+//       const result = await cloudinary.uploader.upload(fileUri);
+//       userImg.public_id = result.public_id;
+//       userImg.secure_url = result.secure_url;
+//     }
+
+//     // Create new doctor
+//     const newDoctor = new UserDoctor({
+//       userImg,
+//       firstName,
+//       lastName,
+//       email,
+//       password: hashedPassword,
+//       userType: normalizedUserType,
+//       phoneNumber,
+//       gender,
+//       dateOfBirth,
+//       speciality,
+//       devices: [],
+//     });
+
+//     // Save the doctor to the database
+//     await newDoctor.save();
+
+//     // Generate JWT
+//     const token = jwt.sign(
+//       { id: newDoctor._id, email: newDoctor.email },
+//       process.env.JWT_SECRET,
+//       {
+//         expiresIn: "7d", // Token expires in 7 days
+//       }
+//     );
+
+//     res.status(201).json({
+//       message: "Doctor registered successfully",
+//       userData: newDoctor,
+//       token,
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// };
+
+exports.googleSignUp = async (req, res) => {
+  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  const { idToken } = req.body;
+
+  try {
+    // Verify the Google ID token
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const email = payload.email;
+    // Check if user already exists
+    let doctor = await UserDoctor.findOne({ email });
+    
+    if (!doctor){
+      res.status(200).json({
+        isExist: false,
+        // message: doctor.isEmailVerified
+        //   ? "Doctor signed in successfully"
+        //   : "Doctor account created successfully",
+        // userData: doctor,
+        // token,
+      });
+      return
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: doctor._id, email: doctor.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(200).json({
+      isExist: true,
+      message: doctor.isEmailVerified
+        ? "Doctor signed in successfully"
+        : "Doctor account created successfully",
+      userData: doctor,
+      token,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+

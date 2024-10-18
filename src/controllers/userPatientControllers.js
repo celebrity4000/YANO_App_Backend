@@ -4,6 +4,8 @@ const cloudinary = require("cloudinary").v2;
 const UserPatient = require("../models/UserPatient");
 const MedicalHistory = require("../models/MedicalHistory");
 const { getDataUri } = require("../utils/feature"); // Adjust the path based on your project structure
+const { OAuth2Client } = require('google-auth-library');
+
 
 exports.patientSignup = async (req, res) => {
   const {
@@ -596,7 +598,7 @@ exports.verifyEmailOTP = async (req, res) => {
 
 exports.addGlucometer = async (req, res) => {
   const { userId } = req.params;
-  const glucometerData = req.body;
+  const glucometerData = {"deviceName": "Glucometer", "deviceSerialNumber": "abcd", "deviceType": "glucometer"};
 
   console.log(glucometerData);
 
@@ -659,6 +661,112 @@ exports.deleteGlucometer = async (req, res) => {
     });
   } catch (error) {
     console.error("Error deleting glucometer:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.googleSignIn = async (req, res) => {
+  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  const { idToken } = req.body;
+
+  try {
+    // Verify the Google ID token
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const email = payload.email;
+
+    console.log ("google payload is: ", payload);
+
+    // Check if user already exists
+    let user = await UserPatient.findOne({ email });
+
+    if (user) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    // Create new patient
+    const newPatient = new UserPatient({
+      firstName: payload.given_name,
+      lastName: payload.family_name,
+      email: payload.email,
+      gender: payload.gender || "", // You might want to ask for this separately
+      dateOfBirth: payload.dateOfBirth || "", // You might want to ask for this separately
+      password: ' ', // No password for Google sign-up
+      isEmailVerified: payload.email_verified,
+      googleId: payload.sub,
+      userImg: {
+        secure_url: payload.picture,
+      },
+      sessionCount: 0,
+      isPhoneVerified: false,
+      devices: [],
+    });
+
+    // Save the patient to the database
+    await newPatient.save();
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: newPatient._id, email: newPatient.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(201).json({
+      message: "Patient registered successfully via Google",
+      userData: newPatient,
+      token,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.googleSignUp = async (req, res) => {
+  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  const { idToken } = req.body;
+
+  try {
+    // Verify the Google ID token
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const email = payload.email;
+    // Check if user already exists
+    let patient = await UserPatient.findOne({ email });
+    
+    if (!patient){
+      res.status(200).json({
+        isExist: false,
+      });
+      return;
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: patient._id, email: patient.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(200).json({
+      isExist: true,
+      message: patient.isEmailVerified
+        ? "Patient signed in successfully"
+        : "Patient account created successfully",
+      userData: patient,
+      token,
+    });
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Server error" });
   }
 };

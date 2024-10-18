@@ -3,6 +3,13 @@ const UserPatient = require("../models/UserPatient");
 
 const { Schema } = mongoose;
 
+const DeviceSchema = new Schema({
+  deviceName: { type: String, required: true },
+  deviceSerialNumber: { type: String, required: true },
+  deviceType: { type: String, required: true },
+  lastSynced: { type: Date },
+});
+
 const UserDoctorSchema = new Schema(
   {
     userImg: {
@@ -23,6 +30,7 @@ const UserDoctorSchema = new Schema(
     gender: { type: String },
     dateOfBirth: { type: Date },
     speciality: { type: String },
+    devices: [DeviceSchema],
     isEmailVerified: { type: Boolean, default: false },
     isPhoneVerified: { type: Boolean, default: false },
     patients: [{ type: Schema.Types.ObjectId, ref: "UserPatient" }],
