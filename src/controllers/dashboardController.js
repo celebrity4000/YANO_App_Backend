@@ -34,9 +34,6 @@ exports.getDashboardData = async (req, res) => {
       );
     });
 
-    console.log(previousMonthNewUsers.length);
-    console.log(currentMonthNewUsers.length);
-
     // Calculate percentage increase/decrease in new users since last month
     const newUsersPercentageChange = calculatePercentageChange(
       previousMonthNewUsers.length,
@@ -62,9 +59,6 @@ exports.getDashboardData = async (req, res) => {
         createdDate.getFullYear() === previousMonthYear
       );
     });
-
-    console.log(previousMonthActiveUsers.length);
-    console.log(currentMonthActiveUsers.length);
 
     // Calculate percentage increase/decrease in active users since last month
     const activeUsersPercentageChange = calculatePercentageChange(

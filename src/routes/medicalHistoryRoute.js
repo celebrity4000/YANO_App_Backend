@@ -8,5 +8,9 @@ router.post("/", verifyToken, medicalHistoryController.createMedicalHistory);
 
 // Get all medical history
 router.get("/:userId", verifyToken, medicalHistoryController.getMedicalHistory);
+router.get(
+  "/getMedicalHistory/:userId",
+  medicalHistoryController.getMedicalHistory
+);
 
 module.exports = router;

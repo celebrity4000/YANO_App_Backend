@@ -27,6 +27,8 @@ const changePasswordRoutes = require("./src/routes/changePasswordRoutes");
 const patientAddFamilyMemberRoutes = require("./src/routes/patientAddFamilyMemberRoutes");
 const MeasurementUnitsRoutes = require("./src/routes/MeasurementUnitsRoutes.js");
 const dashBoardRoutes = require("./src/routes/dashBoardRoutes.js");
+const notificationRoutes = require("./src/routes/NotificationRoutes.js");
+const healthTrackerRoutes = require("./src/routes/HealthTrackerRoutes.js");
 
 dotenv.config();
 const app = express();
@@ -84,6 +86,8 @@ app.use("/api/changePassword", changePasswordRoutes);
 app.use("/api/patientAddFamilyMember", patientAddFamilyMemberRoutes);
 app.use("/api/measurementunits", MeasurementUnitsRoutes);
 app.use("/api/dashboard", dashBoardRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/healthtracker", healthTrackerRoutes);
 
 // Global error handler (optional)
 app.use((err, req, res, next) => {

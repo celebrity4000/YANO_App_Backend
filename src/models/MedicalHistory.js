@@ -56,4 +56,4 @@ const MedicalHistorySchema = new Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("MedicalHistory", MedicalHistorySchema); // Exporting the model
+module.exports = mongoose.model("MedicalHistory", MedicalHistorySchema);

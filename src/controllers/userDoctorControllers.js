@@ -170,21 +170,19 @@ exports.updateDoctor = async (req, res) => {
   const updates = req.body;
 
   try {
-    // Check if the doctor exists
     const doctor = await UserDoctor.findById(id);
     if (!doctor) {
       return res.status(404).json({ message: "Doctor not found" });
     }
 
-    // If a password is being updated, hash it before saving
-    if (updates.password) {
+    if (updates.password && updates.password.trim() !== "") {
       const salt = await bcrypt.genSalt(10);
       updates.password = await bcrypt.hash(updates.password, salt);
+    } else {
+      delete updates.password;
     }
 
-    // If a new image is uploaded, handle the upload to Cloudinary
     if (req.file) {
-      // Upload new image to Cloudinary
       const fileUri = getDataUri(req.file).content;
       const result = await cloudinary.uploader.upload(fileUri);
       updates.userImg = {
@@ -192,16 +190,14 @@ exports.updateDoctor = async (req, res) => {
         secure_url: result.secure_url,
       };
 
-      // Optionally, delete the old image from Cloudinary
       if (doctor.userImg.public_id) {
         await cloudinary.uploader.destroy(doctor.userImg.public_id);
       }
     }
 
-    // Update doctor with new data
     const updatedDoctor = await UserDoctor.findByIdAndUpdate(id, updates, {
-      new: true, // Return the updated document
-      runValidators: true, // Ensure validation rules are applied
+      new: true,
+      runValidators: true,
     });
 
     res.status(200).json({
@@ -210,7 +206,7 @@ exports.updateDoctor = async (req, res) => {
     });
   } catch (error) {
     console.error("Update error:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error });
   }
 };
 
