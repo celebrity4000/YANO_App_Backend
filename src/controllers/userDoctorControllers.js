@@ -429,7 +429,7 @@ exports.addGlucometer = async (req, res) => {
   const { userId } = req.params;
   const glucometerData = req.body;
 
-  console.log(glucometerData);
+  console.log("glucometer data is: ", glucometerData);
 
   try {
     const doctor = await UserDoctor.findById(userId);
